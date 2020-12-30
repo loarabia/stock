@@ -1,4 +1,6 @@
 import argparse
+import os
+
 from collections import namedtuple
 
 ###############################################################################
@@ -26,7 +28,6 @@ from collections import namedtuple
 # TODO: Add ability to discover above config file in subdirs
 # TODO: Snarf the ShillerPE Min and Max values directly from the web
 # TODO: Put the vast bulk of this documenation into command line docs
-# TODO: Pass alternative multiplier minimum values and maximum values
 # TODO: Account for some noise in the multiplier and clamp it to 1. Perhaps 
 #   clamp based on the variability of the ShillerPE over a 3 days period where
 #   the ultimate trend was still up.
@@ -47,14 +48,22 @@ Point = namedtuple('Point', ['x', 'y'])
 P1 = Point(x=X1, y=reciprocal(X1))
 P2 = Point(x=X2, y=reciprocal(X2))
 
-# the minimum value and maximum value of the targeted index over the last 5 years.
+SHILLER_MAX_FILE = "max.txt"
+SHILLER_MIN_FILE = "min.txt"
+
+def read_shiller_val(fname):
+    with open(fname, "r", encoding="utf_16") as max_file:
+        max_data = max_file.read()
+        return float(max_data)
+
+# the minimum value and maximum value of the targeted index over the last ~5 years.
 # This is the window we'll map to. There is some research that indicates the business 
 # cycle is about 4 years. So 5 seems okay. Also, hand tuned.
 #
 # This particular index is the Shiller PE 
 # http://www.multpl.com/shiller-pe/table
-SHILLER_5YR_MAX = 33.31
-SHILLER_5YR_MIN = 21.90
+SHILLER_5YR_MAX = read_shiller_val(SHILLER_MAX_FILE) if os.path.exists(SHILLER_MAX_FILE) else 34.03
+SHILLER_5YR_MIN = read_shiller_val(SHILLER_MIN_FILE) if os.path.exists(SHILLER_MIN_FILE) else 21.90
 
 # Min and Max allowed values of the returned multiplier.
 MULT_MIN = 1
@@ -83,6 +92,7 @@ def interpolateIndex(shiller_index_value):
 def main():
     parser = argparse.ArgumentParser(description="Print a multiplier telling you how much money to spend on buying stock")
     parser.add_argument('--shiller-pe', '--cape', '-c', type=float, default=27.77, dest='cape')
+    
     args = parser.parse_args()
 
     current_shiller_value = args.cape
