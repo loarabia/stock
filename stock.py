@@ -1,7 +1,10 @@
 import argparse
 import os
+import requests
 
+from bs4 import BeautifulSoup
 from collections import namedtuple
+
 
 ###############################################################################
 # stock.py
@@ -51,10 +54,22 @@ P2 = Point(x=X2, y=reciprocal(X2))
 SHILLER_MAX_FILE = "max.txt"
 SHILLER_MIN_FILE = "min.txt"
 
-def read_shiller_val(fname):
+SHILLER_URL = "https://www.multpl.com/shiller-pe"
+
+def read_shiller_val_from_file(fname):
     with open(fname, "r", encoding="utf_16") as max_file:
         max_data = max_file.read()
         return float(max_data)
+
+def read_shiller_val_from_web():
+    # TODO: Put network, parse, and find error handling in here.
+    # TODO: DONT harcode an index, Put a more robust find from stripped_strings generator
+    req = requests.get(SHILLER_URL)
+    soup = BeautifulSoup(req.content,'html.parser')
+    current = list(soup.find(id="current").stripped_strings)
+    print("Using Shiller value: " + current[3] + " from " + SHILLER_URL)
+    return float(current[3])
+
 
 # the minimum value and maximum value of the targeted index over the last ~5 years.
 # This is the window we'll map to. There is some research that indicates the business 
@@ -62,8 +77,8 @@ def read_shiller_val(fname):
 #
 # This particular index is the Shiller PE 
 # http://www.multpl.com/shiller-pe/table
-SHILLER_5YR_MAX = read_shiller_val(SHILLER_MAX_FILE) if os.path.exists(SHILLER_MAX_FILE) else 34.03
-SHILLER_5YR_MIN = read_shiller_val(SHILLER_MIN_FILE) if os.path.exists(SHILLER_MIN_FILE) else 21.90
+SHILLER_5YR_MAX = read_shiller_val_from_file(SHILLER_MAX_FILE) if os.path.exists(SHILLER_MAX_FILE) else 34.03
+SHILLER_5YR_MIN = read_shiller_val_from_file(SHILLER_MIN_FILE) if os.path.exists(SHILLER_MIN_FILE) else 21.90
 
 # Min and Max allowed values of the returned multiplier.
 MULT_MIN = 1
@@ -91,11 +106,11 @@ def interpolateIndex(shiller_index_value):
 
 def main():
     parser = argparse.ArgumentParser(description="Print a multiplier telling you how much money to spend on buying stock")
-    parser.add_argument('--shiller-pe', '--cape', '-c', type=float, default=27.77, dest='cape')
+    parser.add_argument('--shiller-pe', '--cape', '-c', type=float, default=None, dest='cape')
     
     args = parser.parse_args()
 
-    current_shiller_value = args.cape
+    current_shiller_value = args.cape if args.cape is not None else read_shiller_val_from_web()
 
     # The easiest way to think of what is going on. You have a math function, the reciprocal 1/x. It maps
     # scalar (unit-less) x values into scalar y values.
